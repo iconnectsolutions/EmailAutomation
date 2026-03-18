@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Automation</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Email Automation Portal</h1>
+      <div class="auth-status" id="authStatus">
+        <span class="status-dot"></span>
+        <span class="status-text">Checking...</span>
+        <button id="connectBtn" class="btn btn-primary" style="display:none">Connect Outlook</button>
+        <button id="reconnectBtn" class="btn btn-secondary" style="display:none">Reconnect</button>
+        <span id="connectedLabel" style="display:none">Connected</span>
+      </div>
+    </header>
+
+    <nav class="main-nav">
+      <button class="nav-link" data-page="contacts">Contacts</button>
+      <button class="nav-link" data-page="batches">Batches</button>
+      <button class="nav-link" data-page="templates">Templates</button>
+      <button class="nav-link" data-page="import">Import</button>
+      <button class="nav-link" data-page="jobs">Jobs</button>
+    </nav>
+
+    <main id="pageContainer">
+      <!-- Contacts page -->
+      <section class="card page" id="page-contacts">
+        <h2>Contacts</h2>
+        <div class="form-row">
+          <label>Search:</label>
+          <input type="text" id="contactsSearch" placeholder="Search by name or email" />
+        </div>
+        <div class="form-row">
+          <button id="createBatchFromContactsBtn" class="btn btn-primary" disabled>Create batch from selected</button>
+        </div>
+        <div id="contactsContainer">
+          <p class="muted">No contacts yet. Import a CSV or Excel file to get started.</p>
+        </div>
+      </section>
+
+      <!-- Batches page -->
+      <section class="card page" id="page-batches" style="display:none">
+        <h2>Selected Batch</h2>
+        <section class="card nested-card">
+          <div class="form-row">
+            <label>Batch:</label>
+            <select id="batchSelect">
+              <option value="">-- Select a batch --</option>
+            </select>
+          </div>
+          <p id="batchHint" class="muted" style="margin-top:0.25rem;font-size:0.85rem;"></p>
+          <div class="form-row">
+            <label>Template:</label>
+            <select id="templateSelect">
+              <option value="">-- Select a template --</option>
+            </select>
+          </div>
+          <button id="sendBtn" class="btn btn-primary" disabled>Send Emails</button>
+          <div id="sendResult" class="result"></div>
+          <h3>Batch Contacts</h3>
+          <div id="recipientsContainer">
+            <p class="muted">Select a batch to view its contacts.</p>
+          </div>
+        </section>
+      </section>
+
+      <!-- Templates page -->
+      <section class="card page" id="page-templates" style="display:none">
+        <h2>Email Templates</h2>
+        <p>Define templates with name, subject, and body. Use <code>{FirstName}</code> for personalization.</p>
+        <div class="template-actions">
+          <button id="addTemplateBtn" class="btn btn-primary">Add Template</button>
+        </div>
+        <div id="templatesList" class="templates-list">
+          <p class="muted">Loading templates...</p>
+        </div>
+        <div id="templateForm" class="template-form" style="display:none">
+          <div class="form-row">
+            <label>Name:</label>
+            <input type="text" id="templateName" placeholder="e.g. Welcome Email" />
+          </div>
+          <div class="form-row">
+            <label>Subject:</label>
+            <input type="text" id="templateSubject" placeholder="e.g. Hello {FirstName}" />
+          </div>
+          <div class="form-row">
+            <label>Body (HTML):</label>
+            <textarea id="templateBody" rows="6" placeholder="<p>Hi {FirstName}, ...</p>"></textarea>
+          </div>
+          <div class="form-row">
+            <button id="saveTemplateBtn" class="btn btn-primary">Save</button>
+            <button id="cancelTemplateBtn" class="btn btn-secondary">Cancel</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Import page -->
+      <section class="card page" id="page-import" style="display:none">
+        <h2>Import CSV or Excel</h2>
+        <p>Upload a CSV or Excel (.xlsx) with columns: <code>email</code>, <code>name</code>, <code>mail1</code>, <code>mail2</code>, ... <code>ignore</code></p>
+        <div class="upload-area">
+          <input type="file" id="importFile" accept=".csv,.xlsx" />
+          <button id="uploadBtn" class="btn btn-primary" disabled>Upload</button>
+        </div>
+        <div id="uploadResult" class="result"></div>
+      </section>
+
+      <!-- Jobs page -->
+      <section class="card page" id="page-jobs" style="display:none">
+        <h2>Job History</h2>
+        <div id="jobsContainer">
+          <p class="muted">No jobs yet</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Create Batch Modal -->
+  <div id="batchModal" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h3>Create Batch</h3>
+      <p class="muted">You have selected <span id="batchModalCount">0</span> contacts.</p>
+      <div class="form-row">
+        <label>Batch name:</label>
+        <input type="text" id="batchModalName" placeholder="e.g. Follow-up Wave 1" />
+      </div>
+      <div class="modal-actions">
+        <button id="batchModalCancel" class="btn btn-secondary">Cancel</button>
+        <button id="batchModalCreate" class="btn btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Job Details Modal -->
+  <div id="jobDetailsModal" class="modal-overlay" style="display:none" aria-hidden="true">
+    <div class="modal modal-large">
+      <div class="modal-header">
+        <div>
+          <h3 style="margin-bottom:0.25rem;">Job Details</h3>
+          <div id="jobDetailsMeta" class="muted" style="font-size:0.85rem;"></div>
+        </div>
+        <button id="jobDetailsClose" class="btn btn-secondary btn-small">Close</button>
+      </div>
+
+      <div class="job-details-actions">
+        <button id="jobRetryFailedBtn" class="btn btn-primary btn-small" disabled>Retry failed</button>
+        <span id="jobRetryHint" class="muted" style="font-size:0.85rem;"></span>
+      </div>
+
+      <div class="job-status-summary" id="jobStatusSummary"></div>
+
+      <div class="tabs" id="jobRecipientTabs">
+        <button class="tab active" data-status="">All</button>
+        <button class="tab" data-status="Sent">Sent</button>
+        <button class="tab" data-status="Failed">Failed</button>
+        <button class="tab" data-status="Ignored">Ignored</button>
+      </div>
+
+      <div id="jobRecipientsContainer" style="margin-top:0.75rem;">
+        <p class="muted">Loading...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
